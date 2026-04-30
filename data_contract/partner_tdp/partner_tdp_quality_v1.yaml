@@ -1,0 +1,4 @@
+quality:
+  - type: "rowCount"
+    min: 1
+    description: "Проверка на непустой результат"

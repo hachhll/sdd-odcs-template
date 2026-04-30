@@ -1,0 +1,60 @@
+schema:
+  type: "table"
+  columns:
+    - name: "status"
+      type: "string"
+      description: "Статус договора"
+      lineage: { sourceStep: "agreements_df", sourceField: "status" }
+    - name: "data_begin"
+      type: "date"
+      description: "Дата начала действия"
+      lineage: { sourceStep: "final_df", sourceField: "data_begin" }
+    - name: "data_end"
+      type: "date"
+      description: "Дата окончания действия"
+      lineage: { sourceStep: "final_df", sourceField: "data_end" }
+    - name: "partner_epk_id"
+      type: "string"
+      description: "epk_id клиента"
+      lineage: { sourceStep: "final_df", sourceField: "partner_epk_id" }
+    - name: "partner_name"
+      type: "string"
+      description: "Полное наименование организации"
+      lineage: { sourceStep: "final_df", sourceField: "partner_name" }
+    - name: "last_name"
+      type: "string"
+      description: "Фамилия ФЛ (для ИП)"
+      lineage: { sourceStep: "final_df", sourceField: "last_name" }
+    - name: "first_name"
+      type: "string"
+      description: "Имя ФЛ (для ИП)"
+      lineage: { sourceStep: "final_df", sourceField: "first_name" }
+    - name: "middle_name"
+      type: "string"
+      description: "Отчество ФЛ (для ИП)"
+      lineage: { sourceStep: "final_df", sourceField: "middle_name" }
+    - name: "inn"
+      type: "string"
+      description: "ИНН организации"
+      lineage: { sourceStep: "final_df", sourceField: "inn" }
+    - name: "kpp"
+      type: "string"
+      description: "КПП"
+      lineage: { sourceStep: "final_df", sourceField: "kpp" }
+    - name: "okved"
+      type: "string"
+      description: "Основной код ОКВЭД ЮЛ"
+      lineage: { sourceStep: "final_df", sourceField: "okved" }
+    - name: "head_office_flag"
+      type: "string"
+      description: "Признак головной организации"
+      lineage: { sourceStep: "final_df", sourceField: "head_office_flag" }
+    - name: "kno"
+      type: "string"
+      description: "Код налогового органа"
+      lineage: { sourceStep: "final_df", sourceField: "kno" }
+    - name: "last_update"
+      type: "timestamp"
+      description: "Дата обновления"
+      algorithm: "now()"
+      lineage: { sourceStep: "final_df", sourceField: "last_update" }

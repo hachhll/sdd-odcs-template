@@ -1,0 +1,11 @@
+inputParameters:
+  - name: "$<parameter_name_1>"
+    type: "string"
+    description: "<описание параметра 1>"
+    defaultValue: ""
+    required: false
+  - name: "$<parameter_name_2>"
+    type: "string"
+    description: "<описание параметра 2>"
+    defaultValue: ""
+    required: true

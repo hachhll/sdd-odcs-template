@@ -1,0 +1,8 @@
+fundamentals:
+  name: "partner_tdp"
+  version: "2.0.0"
+  status: "active"
+  domain: "tax"
+  dataProduct: "Tax Platform"
+  description: "Витрина партнеров ЮЛ c согласиями для налоговых вычетов partner_tdp"
+  owner: "Tax Data Team"

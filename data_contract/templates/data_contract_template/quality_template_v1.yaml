@@ -1,0 +1,8 @@
+quality:
+  - type: "rowCount"
+    min: 1
+    description: "Проверка на непустой результат"
+  #- type: "nullCount"
+  #  column: "<column_name>"
+  #  max: 0
+  #  description: "Проверка на отсутствие null"

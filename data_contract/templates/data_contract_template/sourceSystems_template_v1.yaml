@@ -1,0 +1,7 @@
+sourceSystems:
+  - id: "<source_alias_1>"
+    name: "<schema.table_name_1>"
+    description: "<описание источника 1>"
+  - id: "<source_alias_2>"
+    name: "<schema.table_name_2>"
+    description: "<описание источника 2>"

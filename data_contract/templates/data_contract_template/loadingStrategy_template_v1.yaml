@@ -1,0 +1,9 @@
+loadingStrategy:
+  method: "<e.g., full_overwrite, incremental>"
+  depth: "<e.g., full snapshot, delta>"
+  targetTable: "<target_table_name>"
+  saveMode: "<e.g., overwrite, append>"
+  launchModes:
+    manual: true
+    periodic: true
+    schedule: "<e.g., Daily after X flow>"

@@ -1,0 +1,5 @@
+references:
+  - name: "Confluence - <Название статьи или документации>"
+    url: "<ссылка на confluence>"
+  - name: "JIRA"
+    url: "<ссылка на задачу в JIRA>"

@@ -1,0 +1,311 @@
+# Data Contract Consolidated: partner_tdp (Витрина партнеров ЮЛ)
+# Сочетает стандарт ODCS v3.1.0 и детальное ТЗ для разработки на Spark DataFrame API
+
+apiVersion: v3.1.0
+kind: DataContract
+
+# --- 1. Основные метаданные (Fundamentals) ---
+fundamentals:
+  name: "partner_tdp"
+  version: "1.0.0"
+  status: "active"
+  domain: "tax"
+  dataProduct: "Tax Platform"
+  description: "Витрина партнеров ЮЛ с согласиями для налоговых вычетов partner_tdp. Содержит актуальный список клиентов-партнеров ЮЛ, давших согласие в Сбер-Бизнес."
+  owner: "Tax Data Team"
+
+# --- 2. Входные параметры запуска (Input Parameters) ---
+inputParameters:
+  - name: "$partner_tdp_agr_status"
+    type: "string"
+    description: "Статусы согласий для фильтрации"
+    defaultValue: ""
+    required: false
+  - name: "$partner_tdp_product_code"
+    type: "string"
+    description: "Код продукта для отбора"
+    defaultValue: ""
+    required: true
+  - name: "$partner_tdp_doc_kno_code"
+    type: "string"
+    description: "Коды документов для КНО (48, 50)"
+    defaultValue: "48, 50"
+    required: true
+
+# --- 3. Алгоритм и стратегия загрузки (Loading Strategy) ---
+loadingStrategy:
+  method: "full_overwrite"
+  depth: "full snapshot"
+  targetTable: "partner_tdp"
+  saveMode: "overwrite"
+  launchModes:
+    manual: true
+    periodic: true
+    schedule: "Daily after 939820810 flow"
+
+# --- 4. Реестр источников (Source Systems) ---
+sourceSystems:
+  - id: "agr"
+    name: "custom_cib_p4d_ppc.CppAgreement"
+    description: "Согласия Сбер-Бизнес"
+  - id: "prod"
+    name: "custom_cib_p4d_ppc.CppProduct"
+    description: "Продукты Сбер-Бизнес"
+  - id: "cli"
+    name: "custom_cib_p4d_ppc.CppClient"
+    description: "Клиенты Сбер-Бизнес"
+  - id: "subj"
+    name: "subj_org_idl.subj"
+    description: "Субъекты ЮЛ (ЕСС)"
+  - id: "subj_h"
+    name: "subj_org_idl.subj_h"
+    description: "История субъектов (ИНН)"
+  - id: "kpp"
+    name: "subj_org_idl.subj_org_kpp"
+    description: "КПП организаций"
+  - id: "okv_lnk"
+    name: "subj_org_idl.subj_org_okved2"
+    description: "Связь с ОКВЭД2"
+  - id: "okv"
+    name: "subj_org_idl.okved2"
+    description: "Справочник ОКВЭД2"
+  - id: "org_nm"
+    name: "subj_org_idl.subj_orgidfn"
+    description: "Наименования организаций"
+  - id: "ind_nm"
+    name: "subj_org_idl.subj_indidfn"
+    description: "ФИО ИП"
+  - id: "doc"
+    name: "subj_org_idl.subj_org_doc"
+    description: "Документы ЮЛ"
+  - id: "dtp"
+    name: "subj_org_idl.subj_org_doc_type"
+    description: "Типы документов"
+
+# --- 5. Логика трансформации (Transformation Flow) ---
+transformation_flow:
+  - step: 1
+    alias: "df_agreements"
+    operation: "filter"
+    source: "agr"
+    filter:
+      logic: "Выбор актуальных согласий из Сбер-Бизнес. Если параметр $partner_tdp_agr_status не пуст, фильтруем по статусу."
+      predicates: ["agr.isdeleted = false", "(agr.status IN ($partner_tdp_agr_status) OR '$partner_tdp_agr_status' = '')"]
+
+  - step: 2
+    alias: "df_with_product"
+    operation: "join"
+    source: "df_agreements"
+    join:
+      left: "df_agreements"
+      right: "prod"
+      type: "inner"
+      condition: "df_agreements.productarr = prod.productid"
+    filter:
+      logic: "Фильтр по коду продукта и флагу удаления"
+      predicates: ["prod.code IN ($partner_tdp_product_code)", "prod.isdeleted = false"]
+
+  - step: 3
+    alias: "df_with_client"
+    operation: "join"
+    source: "df_with_product"
+    join:
+      left: "df_with_product"
+      right: "cli"
+      type: "inner"
+      condition: "df_with_product.clientId = cli.clientId"
+    filter:
+      logic: "Исключение удаленных клиентов"
+      predicates: ["cli.isdeleted = false"]
+
+  - step: 4
+    alias: "df_ess_subj"
+    operation: "join"
+    source: "df_with_client"
+    join:
+      left: "df_with_client"
+      right: "subj"
+      type: "inner"
+      condition: "df_with_client.epk_id = subj.sid"
+    filter:
+      logic: "Выбор активных субъектов в ЕСС"
+      predicates: ["subj.deleted_flag = false"]
+
+  - step: 5
+    alias: "df_with_inn"
+    operation: "join"
+    source: "df_ess_subj"
+    join:
+      left: "df_ess_subj"
+      right: "subj_h"
+      type: "inner"
+      condition: "df_ess_subj.subj_sk = subj_h.subj_sk AND df_ess_subj.subj_dp_code = subj_h.subj_dp_code"
+    filter:
+      logic: "Актуальность записи на текущую дату"
+      predicates: ["now() >= subj_h.start_dt", "now() <= subj_h.end_dt"]
+
+  - step: 6
+    alias: "df_with_kpp"
+    operation: "join"
+    source: "df_with_inn"
+    join:
+      left: "df_with_inn"
+      right: "kpp"
+      type: "left"
+      condition: "df_with_inn.subj_sk = kpp.subj_sk AND df_with_inn.subj_dp_code = kpp.subj_dp_code"
+    filter:
+      predicates: ["kpp.deleted_flag = false"]
+
+  - step: 7
+    alias: "df_okved_link"
+    operation: "join"
+    source: "df_with_kpp"
+    join:
+      left: "df_with_kpp"
+      right: "okv_lnk"
+      type: "left"
+      condition: "df_with_kpp.subj_sk = okv_lnk.subj_sk AND df_with_kpp.subj_dp_code = okv_lnk.subj_dp_code"
+    filter:
+      logic: "Выбор основного ОКВЭД"
+      predicates: ["okv_lnk.deleted_flag = false", "okv_lnk.main_flag = true"]
+
+  - step: 8
+    alias: "df_okved_code"
+    operation: "join"
+    source: "df_okved_link"
+    join:
+      left: "df_okved_link"
+      right: "okv"
+      type: "left"
+      condition: "df_okved_link.okved2_sk = okv.okved2_sk AND df_okved_link.okved2_dp_code = okv.okved2_dp_code"
+    filter:
+      predicates: ["okv.deleted_flag = false"]
+
+  - step: 9
+    alias: "df_with_org_name"
+    operation: "join"
+    source: "df_okved_code"
+    join:
+      left: "df_okved_code"
+      right: "org_nm"
+      type: "left"
+      condition: "df_okved_code.subj_sk = org_nm.subj_sk AND df_okved_code.subj_dp_code = org_nm.subj_dp_code"
+    filter:
+      logic: "Актуальное наименование ЮЛ"
+      predicates: ["now() >= org_nm.start_dt", "now() <= org_nm.end_dt"]
+
+  - step: 10
+    alias: "df_with_ip_name"
+    operation: "join"
+    source: "df_with_org_name"
+    join:
+      left: "df_with_org_name"
+      right: "ind_nm"
+      type: "left"
+      condition: "df_with_org_name.entrepreneur_subj_sk = ind_nm.subj_sk AND df_with_org_name.entrepreneur_subj_dp_code = ind_nm.subj_dp_code"
+    filter:
+      logic: "Актуальное ФИО ИП"
+      predicates: ["now() >= ind_nm.start_dt", "now() <= ind_nm.end_dt"]
+
+  - step: 11
+    alias: "temp_kno_df"
+    operation: "aggregate"
+    source: "doc"
+    description: "Формирование вспомогательного датасета для определения КНО"
+    join:
+      left: "doc"
+      right: "dtp"
+      type: "inner"
+      condition: "doc.subj_org_doc_type_sk = dtp.subj_org_doc_type_sk"
+    filter:
+      logic: "Документы типа КНО (48, 50) с заполненным кодом органа"
+      predicates: ["doc.subj_org_doc_org_issue_code IS NOT NULL", "doc.deleted_flag = false", "dtp.subj_org_doc_type_code IN ($partner_tdp_doc_kno_code)", "dtp.deleted_flag = false"]
+    expressions:
+      - targetColumn: "max_doc_sid"
+        function: "max"
+        logic: "max(doc.sid) OVER (PARTITION BY doc.subj_sk)"
+        description: "Выбор документа с максимальным ID"
+
+  - step: 12
+    alias: "df_final"
+    operation: "join"
+    source: "df_with_ip_name"
+    join:
+      left: "df_with_ip_name"
+      right: "temp_kno_df"
+      type: "left"
+      condition: "df_with_ip_name.subj_sk = temp_kno_df.subj_sk"
+
+# --- 6. Итоговая схема и маппинг (Schema & Final Mapping) ---
+schema:
+  type: "table"
+  columns:
+    - name: "status"
+      type: "string"
+      description: "Статус договора"
+      lineage: { sourceStep: "df_agreements", sourceField: "status" }
+    - name: "data_begin"
+      type: "date"
+      description: "Дата начала действия"
+      lineage: { sourceStep: "df_agreements", sourceField: "databegin" }
+    - name: "data_end"
+      type: "date"
+      description: "Дата окончания действия"
+      lineage: { sourceStep: "df_agreements", sourceField: "dataend" }
+    - name: "partner_epk_id"
+      type: "string"
+      description: "epk_id клиента"
+      lineage: { sourceStep: "df_with_client", sourceField: "epk_id" }
+    - name: "partner_name"
+      type: "string"
+      description: "Полное наименование организации"
+      lineage: { sourceStep: "df_with_org_name", sourceField: "full_name" }
+    - name: "last_name"
+      type: "string"
+      description: "Фамилия ФЛ (для ИП)"
+      lineage: { sourceStep: "df_with_ip_name", sourceField: "family_name" }
+    - name: "first_name"
+      type: "string"
+      description: "Имя ФЛ (для ИП)"
+      lineage: { sourceStep: "df_with_ip_name", sourceField: "first_name" }
+    - name: "middle_name"
+      type: "string"
+      description: "Отчество ФЛ (для ИП)"
+      lineage: { sourceStep: "df_with_ip_name", sourceField: "father_name" }
+    - name: "inn"
+      type: "string"
+      description: "ИНН организации"
+      lineage: { sourceStep: "df_with_inn", sourceField: "inn_num" }
+    - name: "kpp"
+      type: "string"
+      description: "КПП"
+      lineage: { sourceStep: "df_with_kpp", sourceField: "kpp_code" }
+    - name: "okved"
+      type: "string"
+      description: "Основной код ОКВЭД ЮЛ"
+      lineage: { sourceStep: "df_okved_code", sourceField: "code" }
+    - name: "head_office_flag"
+      type: "string"
+      description: "Признак головной организации"
+      lineage: { sourceStep: "df_ess_subj", sourceField: "head_office_flag" }
+    - name: "kno"
+      type: "string"
+      description: "Код налогового органа"
+      lineage: { sourceStep: "temp_kno_df", sourceField: "subj_org_doc_org_issue_code" }
+    - name: "last_update"
+      type: "timestamp"
+      description: "Дата обновления"
+      algorithm: "now()"
+
+# --- 7. Качество данных (Data Quality) ---
+quality:
+  - type: "rowCount"
+    min: 1
+    description: "Проверка на непустой результат"
+
+# --- 9. Ссылки и Документация (References) ---
+references:
+  - name: "Confluence - Витрина ЮЛ с согласиями"
+    url: "https://confluence.sberbank.ru/pages/viewpage.action?pageId=17058192014"
+  - name: "JIRA"
+    url: "https://jira.sberbank.ru/browse/PND-1260"

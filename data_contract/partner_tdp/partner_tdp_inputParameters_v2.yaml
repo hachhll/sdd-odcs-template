@@ -1,0 +1,16 @@
+inputParameters:
+  - name: "$partner_tdp_agr_status"
+    type: "string"
+    description: "Статусы согласий для фильтрации"
+    defaultValue: ""
+    required: false
+  - name: "$partner_tdp_product_code"
+    type: "string"
+    description: "Код продукта для отбора"
+    defaultValue: ""
+    required: true
+  - name: "$partner_tdp_doc_kno_code"
+    type: "string"
+    description: "Коды документов для КНО (48, 50)"
+    defaultValue: "48, 50"
+    required: true

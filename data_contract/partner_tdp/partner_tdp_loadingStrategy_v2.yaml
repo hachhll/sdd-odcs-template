@@ -1,0 +1,9 @@
+loadingStrategy:
+  method: "full_overwrite"
+  depth: "full snapshot"
+  targetTable: "partner_tdp"
+  saveMode: "overwrite"
+  launchModes:
+    manual: true
+    periodic: true
+    schedule: "Daily after 939820810 flow"

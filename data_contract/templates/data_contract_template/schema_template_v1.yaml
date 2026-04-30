@@ -1,0 +1,16 @@
+schema:
+  type: "table"
+  columns:
+    - name: "<column_1>"
+      type: "<string | date | int | timestamp>"
+      description: "<Описание поля>"
+      lineage: { sourceStep: "<e.g., final_df>", sourceField: "<source_col_name>" }
+    - name: "<column_2>"
+      type: "<string>"
+      description: "<Описание поля 2>"
+      lineage: { sourceStep: "<e.g., final_df>", sourceField: "<source_col_name>" }
+    - name: "last_update"
+      type: "timestamp"
+      description: "Дата обновления"
+      algorithm: "now()"
+      lineage: { sourceStep: "final_df", sourceField: "last_update" }

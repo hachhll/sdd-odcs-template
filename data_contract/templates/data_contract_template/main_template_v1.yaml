@@ -1,0 +1,12 @@
+apiVersion: v3.1.0
+kind: DataContract
+
+# Список разделов и соответствующих файлов
+fundamentals: $ref: fundamentals_template_v1.yaml
+inputParameters: $ref: inputParameters_template_v1.yaml
+loadingStrategy: $ref: loadingStrategy_template_v1.yaml
+sourceSystems: $ref: sourceSystems_template_v1.yaml
+transformation_flow: $ref: transformation_flow_template_v1.yaml
+schema: $ref: schema_template_v1.yaml
+quality: $ref: quality_template_v1.yaml
+references: $ref: references_template_v1.yaml

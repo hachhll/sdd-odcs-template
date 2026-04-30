@@ -1,0 +1,121 @@
+# Data Contract Consolidated Template v1.0
+# Сочетает стандарт ODCS v3.1.0 и детальное ТЗ для разработки на Spark DataFrame API
+
+apiVersion: v3.1.0
+kind: DataContract
+
+# --- 1. Основные метаданные (Fundamentals) ---
+# Данный раздел содержит базовую информацию о контракте, его версии и принадлежности.
+# Включает описание на русском языке и технические заголовки на английском.
+fundamentals:
+  name: ""             # Техническое имя контракта (English)
+  version: "1.0.0"      # Семантическая версия (SemVer)
+  status: "active"      # Статус жизненного цикла: proposed, active, deprecated, retired
+  domain: ""            # Бизнес-домен (например, finance, sales)
+  dataProduct: ""       # Имя продукта данных
+  description: ""       # Подробное бизнес-описание набора данных (Russian)
+  owner: ""             # Команда или владелец продукта данных (Data Product Owner)
+
+# --- 2. Входные параметры запуска (Input Parameters) ---
+# Обязательные параметры, передаваемые в Spark-скрипт (например, через --conf или аргументы)
+inputParameters:
+  - name: ""            # Имя параметра (например, $start_dt, $data_product)
+    type: ""            # Тип: date, string, integer
+    description: ""     # Подробное описание назначения параметра (Russian)
+    defaultValue: ""    # Значение по умолчанию
+    required: true      # Обязательность наличия при запуске
+
+# --- 3. Алгоритм и стратегия загрузки (Loading Strategy) ---
+# Описывает метод сохранения данных в целевую таблицу и режимы работы потока
+loadingStrategy:
+  method: ""            # full_overwrite, partition_replace, incremental_merge, snapshot
+  depth: ""             # Глубина пересчета/загрузки (например, "14 days", "full history")
+  targetTable: ""       # Техническое имя целевой таблицы в витрине
+  saveMode: "overwrite" # Spark SaveMode: overwrite, append, ignore, errorifexists
+  launchModes:
+    manual: true        # Возможность ручного запуска (Russian: Ручной запуск)
+    periodic: true      # Наличие расписания (Russian: Периодический запуск)
+    schedule: ""        # Период запуска (например, "daily at 09:00", "hourly", cron)
+
+# --- 4. Реестр источников (Source Systems) ---
+# Перечень всех исходных сущностей (реплики, справочники, таблицы подписки)
+sourceSystems:
+  - id: ""              # Внутренний ID источника для использования в Flow (Alias)
+    name: ""            # Полное техническое имя таблицы/путь (например, db.table)
+    description: ""     # Краткое описание содержания (Russian)
+    optimizationHints:  # Подсказки для этапа чтения (Predicate Pushdown, Partition Pruning)
+      partitionPruning: true
+      predicatePushdown: true
+
+# --- 5. Логика трансформации (Transformation Flow / Spark DataFrame API Paradigm) ---
+# Детальное описание шагов обработки данных. Каждый шаг соответствует этапу в цепочке преобразований DF.
+transformation_flow:
+  - step: 1
+    alias: "df_step_name"        # Алиас промежуточного DataFrame
+    operation: ""                # Тип операции: read, filter, join, select, withColumn, window, aggregate, repartition
+    source: ""                   # ID источника из sourceSystems или Alias предыдущего шага
+    
+    # Секция фильтрации (соответствует .filter() или .where())
+    filter:
+      logic: ""                  # Текстовое описание логики фильтра (Russian)
+      predicates: []             # Конкретные условия для Pushdown (например, "col_a > 10")
+    
+    # Секция объединения (соответствует .join())
+    join:
+      left: ""                   # Alias левого DF
+      right: ""                  # Alias правого DF
+      type: "left"               # inner, left, right, full, cross, left_semi, left_anti
+      condition: ""              # Условие объединения (например, "left.pk == right.fk")
+      optimization: ""           # broadcast, merge, shuffle_hash
+    
+    # Секция вычислений (соответствует .withColumn())
+    # Описывает применение функций: coalesce, when/then, window functions
+    expressions:
+      - targetColumn: ""         # Имя результирующей колонки
+        function: ""             # coalesce, when, row_number, etc.
+        logic: ""                # Детальная формула/логика преобразования (English/SQL-like)
+        description: ""          # Бизнес-смысл преобразования (Russian)
+
+    # Секция управления ресурсами и распределением (Optimizer hints)
+    sparkOptimizations:
+      repartition: null          # Количество шардов (int) или колонки для repartition
+      coalesce: null             # Количество шардов для уменьшения (coalesce)
+      cache: false               # Флаг .cache() если DF используется многократно
+
+# --- 6. Итоговая схема и маппинг (Schema & Final Mapping) ---
+# Финальная структура данных на выходе. Типизация без промежуточных трансформаций.
+schema:
+  type: "table"
+  columns:
+    - name: ""                  # Имя колонки в целевой таблице (English)
+      type: ""                  # Spark DataType (string, long, date, timestamp, decimal(x,y), boolean)
+      description: ""           # Описание поля для потребителя (Russian)
+      required: true            # Флаг Not Null
+      primaryKey: false         # Входит ли в состав PK
+      lineage:                  # Прослеживаемость (упрощенная связь)
+        sourceStep: ""          # Alias шага из transformation_flow, где сформировано поле
+        sourceField: ""         # Имя поля в исходном шаге
+
+# --- 7. Качество данных (Data Quality) ---
+# Формализованные проверки (assertions)
+quality:
+  - property: ""                # Поле для проверки
+    type: ""                    # unique, not_null, range, regex
+    params: { value: "" }
+    severity: "error"           # error, warning
+  - type: "rowCount"            # Глобальная проверка (например, min: 1)
+    min: 1
+    description: "Проверка на непустой результат"
+
+# --- 8. Заинтересованные стороны и Поддержка (Stakeholders & Support) ---
+stakeholders:
+  - name: ""
+    role: "technicalLead"       # technicalLead, dataSteward
+    contact: ""                 # email, slack
+
+# --- 9. Ссылки и Документация (References) ---
+references:
+  - name: "Confluence"
+    url: ""
+  - name: "JIRA"
+    url: ""

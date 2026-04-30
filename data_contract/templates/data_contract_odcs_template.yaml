@@ -1,0 +1,104 @@
+# Open Data Contract Standard (ODCS) v3.1.0 Template
+# Унифицированный шаблон контракта данных (Версия 3.1.0)
+
+apiVersion: v3.1.0
+kind: DataContract
+
+# --- Основные метаданные (Fundamentals) ---
+# Данный раздел содержит базовую информацию о контракте, его версии и принадлежности.
+id: ""               # Уникальный идентификатор контракта (например, URN или UUID)
+name: ""             # Техническое имя контракта (English)
+version: "1.0.0"     # Семантическая версия (SemVer)
+status: "proposed"   # Статус: proposed, draft, active, deprecated, retired
+domain: ""           # Бизнес-домен (например, finance, sales)
+dataProduct: ""      # Имя продукта данных
+tenant: ""           # Название организации или подразделения
+
+description:
+  purpose: ""        # Бизнес-цель предоставления данных (Russian)
+  limitations: ""    # Известные ограничения данных
+  usage: ""          # Примеры использования
+  authoritativeDefinitions: # Ссылки на бизнес-глоссарии или политики
+    - type: "business-glossary"
+      url: ""
+
+# --- Инфраструктура (Servers) ---
+# Описание серверов, где физически расположены данные.
+servers:
+  - name: ""         # Логическое имя сервера
+    type: ""         # Тип: snowflake, bigquery, postgres, s3, и т.д.
+    host: ""         # Адрес хоста
+    database: ""     # Имя БД
+    schema: ""       # Имя схемы
+    environment: ""  # Окружение: production, staging, development
+
+# --- Спецификация схемы (Schema) ---
+# Детальное описание структуры таблиц/потоков и их свойств.
+schema:
+  - id: ""           # Уникальный ID набора данных в рамках контракта
+    name: ""         # Техническое имя (логическое)
+    physicalName: "" # Физическое имя таблицы/файла
+    physicalType: "table" # table, stream, file
+    logicalType: "object"
+    businessName: "" # Понятное бизнес-название (Russian)
+    description: ""  # Описание набора данных (Russian)
+    
+    # Связи (Relationships - New in v3.1.0)
+    relationships:
+      - type: "foreignKey"
+        from: [""]   # Локальное поле
+        to: [""]     # Внешнее поле (table.column)
+        description: ""
+
+    # Свойства/Колонки
+    properties:
+      - id: ""
+        name: ""            # Имя колонки (English)
+        physicalName: ""    # Физическое имя в источнике
+        logicalType: ""     # Тип: string, number, boolean, date, timestamp
+        physicalType: ""    # Тип в БД: e.g., VARCHAR(36), DECIMAL(18,2)
+        primaryKey: false
+        required: true      # Not Null
+        partitioned: false  # Используется ли для партицирования
+        description: ""     # Описание поля (Russian)
+        tags: []            # Теги: e.g., [PII, sensitive]
+
+# --- Качество данных (Quality) ---
+# Формализованные правила для автоматической проверки.
+quality:
+  - property: ""     # Имя свойства
+    type: ""         # Тип: unique, min, max, regex, not_null
+    severity: "error" # Уровень: error (прерывание), warning (предупреждение)
+  - type: "rowCount" # Стандартная проверка на количество строк
+    min: 1
+    description: "Набор данных не должен быть пустым"
+
+# --- Соглашение об уровне сервиса (SLA) ---
+# Операционные гарантии поставщика.
+sla:
+  - type: "latency"
+    description: "Данные доступны в течение X часов после события"
+    threshold: ""    # Например, "4h"
+    schedule: ""     # cron-выражение для мониторинга (RFC-0025)
+  - type: "freshness"
+    threshold: "T+1"
+  - type: "availability"
+    threshold: "99.9%"
+
+# --- Команда и стейкхолдеры (Team) ---
+team:
+  - name: ""
+    role: "owner"    # owner, steward, engineer
+    contact: ""      # email или канал в мессенджере
+
+# --- Условия использования (Terms of Use) ---
+termsOfUse:
+  license: ""        # Лицензия (например, Apache-2.0)
+  classification: "" # Классификация: public, internal, restricted
+  confidentiality: ""
+
+# --- Произвольные свойства (Custom Properties) ---
+# Специфичные метаданные (например, шаги ETL логики).
+customProperties:
+  - property: "etl-logic"
+    value: ""

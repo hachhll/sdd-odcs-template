@@ -1,0 +1,8 @@
+fundamentals:
+  name: "<table_or_mart_name>"
+  version: "1.0.0"
+  status: "active"
+  domain: "<domain_name>"
+  dataProduct: "<data_product_name>"
+  description: "<Описание витрины/сущности>"
+  owner: "<owner_team_or_person>"

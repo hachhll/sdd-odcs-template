@@ -1,0 +1,11 @@
+services:
+  analyst-env:
+    build:
+      context: ..
+      dockerfile: .docker/Dockerfile
+      network: host
+    container_name: antigravity_analyst
+    volumes:
+      - ..:/home/developer/app
+    ports:
+      - "2226:22"

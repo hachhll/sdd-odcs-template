@@ -1,0 +1,240 @@
+transformation_flow:
+  - step: "read_agreements"
+    alias: "agreements_df"
+    operation: "read"
+    source: "agr"
+    description: "Получения списка актуальных клиентов из Витрины Сбер-Бизнес"
+    filter:
+      logic: "Если $partner_tdp_agr_status не пусто, применяем фильтр"
+      predicates:
+        - "agr.isdeleted = false"
+        - "(agr.status IN ($partner_tdp_agr_status) OR '$partner_tdp_agr_status' = '')"
+    select:
+      - { targetColumn: "status", logic: "agr.status" }
+      - { targetColumn: "databegin", logic: "agr.databegin" }
+      - { targetColumn: "dataend", logic: "agr.dataend" }
+      - { targetColumn: "clientId", logic: "agr.clientId" }
+      - { targetColumn: "productarr", logic: "agr.productarr" }
+
+  - step: "join_product"
+    alias: "with_product_df"
+    operation: "join"
+    source: "agreements_df"
+    description: "Присоединить CppProduct"
+    join:
+      left: "agreements_df"
+      right: "prod"
+      type: "inner"
+      condition: "agreements_df.productarr = prod.productid"
+      preJoinFilter:
+        logic: "Актуальные нужные продукты"
+        predicates:
+          - "prod.code IN ($partner_tdp_product_code)"
+          - "prod.isdeleted = false"
+    select:
+      - { targetColumn: "*", logic: "agreements_df.*" }
+
+  - step: "join_client"
+    alias: "with_client_df"
+    operation: "join"
+    source: "with_product_df"
+    description: "Присоединить CppClient"
+    join:
+      left: "with_product_df"
+      right: "cli"
+      type: "inner"
+      condition: "with_product_df.clientId = cli.clientId"
+      preJoinFilter:
+        logic: "Актуальные клиенты"
+        predicates:
+          - "cli.isdeleted = false"
+    select:
+      - { targetColumn: "*", logic: "with_product_df.*" }
+      - { targetColumn: "partner_epk_id", logic: "cli.epk_id" }
+
+  - step: "join_subj"
+    alias: "ess_subj_df"
+    operation: "join"
+    source: "with_client_df"
+    description: "Обогатить клиентов информацией из ЕСС (subj_org.subj)"
+    join:
+      left: "with_client_df"
+      right: "subj"
+      type: "inner"
+      condition: "with_client_df.partner_epk_id = subj.sid"
+      preJoinFilter:
+        logic: "Только не удаленные субъекты"
+        predicates:
+          - "subj.deleted_flag = false"
+    select:
+      - { targetColumn: "*", logic: "with_client_df.*" }
+      - { targetColumn: "subj_sk", logic: "subj.subj_sk" }
+      - { targetColumn: "subj_dp_code", logic: "subj.subj_dp_code" }
+      - { targetColumn: "head_office_flag", logic: "subj.head_office_flag" }
+      - { targetColumn: "entrepreneur_subj_sk", logic: "subj.entrepreneur_subj_sk" }
+      - { targetColumn: "entrepreneur_subj_dp_code", logic: "subj.entrepreneur_subj_dp_code" }
+
+  - step: "join_subj_h"
+    alias: "with_inn_df"
+    operation: "join"
+    source: "ess_subj_df"
+    description: "Обогатить историей субъектов (subj_h)"
+    join:
+      left: "ess_subj_df"
+      right: "subj_h"
+      type: "inner"
+      condition: "ess_subj_df.subj_sk = subj_h.subj_sk AND ess_subj_df.subj_dp_code = subj_h.subj_dp_code"
+      preJoinFilter:
+        logic: "Актуальность на текущую дату"
+        predicates:
+          - "now() >= subj_h.start_dt"
+          - "now() <= subj_h.end_dt"
+    select:
+      - { targetColumn: "*", logic: "ess_subj_df.*" }
+      - { targetColumn: "inn", logic: "subj_h.inn_num" }
+
+  - step: "join_subj_org_kpp"
+    alias: "with_kpp_df"
+    operation: "join"
+    source: "with_inn_df"
+    description: "Присоединить КПП"
+    join:
+      left: "with_inn_df"
+      right: "kpp"
+      type: "left"
+      condition: "with_inn_df.subj_sk = kpp.subj_sk AND with_inn_df.subj_dp_code = kpp.subj_dp_code"
+      preJoinFilter:
+        predicates:
+          - "kpp.deleted_flag = false"
+    select:
+      - { targetColumn: "*", logic: "with_inn_df.*" }
+      - { targetColumn: "kpp", logic: "kpp.kpp_code" }
+
+  - step: "join_subj_org_okved2"
+    alias: "okved_link_df"
+    operation: "join"
+    source: "with_kpp_df"
+    description: "Связь с ОКВЭД2"
+    join:
+      left: "with_kpp_df"
+      right: "okv_lnk"
+      type: "left"
+      condition: "with_kpp_df.subj_sk = okv_lnk.subj_sk AND with_kpp_df.subj_dp_code = okv_lnk.subj_dp_code"
+      preJoinFilter:
+        logic: "Основной активный ОКВЭД"
+        predicates:
+          - "okv_lnk.deleted_flag = false"
+          - "okv_lnk.main_flag = true"
+    select:
+      - { targetColumn: "*", logic: "with_kpp_df.*" }
+      - { targetColumn: "okved2_sk", logic: "okv_lnk.okved2_sk" }
+      - { targetColumn: "okved2_dp_code", logic: "okv_lnk.okved2_dp_code" }
+
+  - step: "join_okved2"
+    alias: "okved_code_df"
+    operation: "join"
+    source: "okved_link_df"
+    description: "Справочник ОКВЭД2"
+    join:
+      left: "okved_link_df"
+      right: "okv"
+      type: "left"
+      condition: "okved_link_df.okved2_sk = okv.okved2_sk AND okved_link_df.okved2_dp_code = okv.okved2_dp_code"
+      preJoinFilter:
+        predicates:
+          - "okv.deleted_flag = false"
+    select:
+      - { targetColumn: "*", logic: "okved_link_df.*" }
+      - { targetColumn: "okved", logic: "okv.code" }
+
+  - step: "join_subj_orgidfn"
+    alias: "with_org_name_df"
+    operation: "join"
+    source: "okved_code_df"
+    description: "Актуальное наименование ЮЛ"
+    join:
+      left: "okved_code_df"
+      right: "org_nm"
+      type: "left"
+      condition: "okved_code_df.subj_sk = org_nm.subj_sk AND okved_code_df.subj_dp_code = org_nm.subj_dp_code"
+      preJoinFilter:
+        predicates:
+          - "now() >= org_nm.start_dt"
+          - "now() <= org_nm.end_dt"
+    select:
+      - { targetColumn: "*", logic: "okved_code_df.*" }
+      - { targetColumn: "partner_name", logic: "org_nm.full_name" }
+
+  - step: "join_subj_indidfn"
+    alias: "with_ip_name_df"
+    operation: "join"
+    source: "with_org_name_df"
+    description: "Актуальное ФИО ИП"
+    join:
+      left: "with_org_name_df"
+      right: "ind_nm"
+      type: "left"
+      condition: "with_org_name_df.entrepreneur_subj_sk = ind_nm.subj_sk AND with_org_name_df.entrepreneur_subj_dp_code = ind_nm.subj_dp_code"
+      preJoinFilter:
+        predicates:
+          - "now() >= ind_nm.start_dt"
+          - "now() <= ind_nm.end_dt"
+    select:
+      - { targetColumn: "*", logic: "with_org_name_df.*" }
+      - { targetColumn: "last_name", logic: "ind_nm.family_name" }
+      - { targetColumn: "first_name", logic: "ind_nm.first_name" }
+      - { targetColumn: "middle_name", logic: "ind_nm.father_name" }
+
+  - step: "aggregate_kno"
+    alias: "temp_kno_df"
+    operation: "aggregate"
+    source: "doc"
+    description: "Формирование вспомогательного датасета для КНО с отбором по максимальному id документа"
+    join:
+      left: "doc"
+      right: "dtp"
+      type: "inner"
+      condition: "doc.subj_org_doc_type_sk = dtp.subj_org_doc_type_sk"
+      preJoinFilter:
+        predicates:
+          - "doc.subj_org_doc_org_issue_code IS NOT NULL"
+          - "doc.deleted_flag = false"
+          - "dtp.subj_org_doc_type_code IN ($partner_tdp_doc_kno_code)"
+          - "dtp.deleted_flag = false"
+    expressions:
+      - targetColumn: "max_doc_sid"
+        logic: "MAX(doc.sid) OVER (PARTITION BY doc.subj_sk)"
+    select:
+      - { targetColumn: "subj_sk", logic: "doc.subj_sk" }
+      - { targetColumn: "kno", logic: "doc.subj_org_doc_org_issue_code" }
+      - { targetColumn: "doc_sid", logic: "doc.sid" }
+      - { targetColumn: "max_doc_sid", logic: "max_doc_sid" }
+    postJoinFilter:
+      predicates:
+        - "doc_sid = max_doc_sid"
+
+  - step: "final_join_kno"
+    alias: "final_df"
+    operation: "join"
+    source: "with_ip_name_df"
+    description: "Присоединить датасет КНО к основному датасету"
+    join:
+      left: "with_ip_name_df"
+      right: "temp_kno_df"
+      type: "left"
+      condition: "with_ip_name_df.subj_sk = temp_kno_df.subj_sk"
+    select:
+      - { targetColumn: "status", logic: "with_ip_name_df.status" }
+      - { targetColumn: "data_begin", logic: "with_ip_name_df.databegin" }
+      - { targetColumn: "data_end", logic: "with_ip_name_df.dataend" }
+      - { targetColumn: "partner_epk_id", logic: "with_ip_name_df.partner_epk_id" }
+      - { targetColumn: "partner_name", logic: "with_ip_name_df.partner_name" }
+      - { targetColumn: "last_name", logic: "with_ip_name_df.last_name" }
+      - { targetColumn: "first_name", logic: "with_ip_name_df.first_name" }
+      - { targetColumn: "middle_name", logic: "with_ip_name_df.middle_name" }
+      - { targetColumn: "inn", logic: "with_ip_name_df.inn" }
+      - { targetColumn: "kpp", logic: "with_ip_name_df.kpp" }
+      - { targetColumn: "okved", logic: "with_ip_name_df.okved" }
+      - { targetColumn: "head_office_flag", logic: "with_ip_name_df.head_office_flag" }
+      - { targetColumn: "kno", logic: "temp_kno_df.kno" }
+      - { targetColumn: "last_update", logic: "now()" }

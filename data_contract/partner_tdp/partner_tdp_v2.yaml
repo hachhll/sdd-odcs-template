@@ -1,0 +1,12 @@
+apiVersion: v3.1.0
+kind: DataContract
+
+# Список разделов и соответствующих файлов v2
+fundamentals: $ref: partner_tdp_fundamentals_v2.yaml
+inputParameters: $ref: partner_tdp_inputParameters_v2.yaml
+loadingStrategy: $ref: partner_tdp_loadingStrategy_v2.yaml
+sourceSystems: $ref: partner_tdp_sourceSystems_v2.yaml
+transformation_flow: $ref: partner_tdp_transformation_flow_v2.yaml
+schema: $ref: partner_tdp_schema_v2.yaml
+quality: $ref: partner_tdp_quality_v2.yaml
+references: $ref: partner_tdp_references_v2.yaml
