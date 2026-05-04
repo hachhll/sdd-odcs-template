@@ -6,3 +6,11 @@ fundamentals:
   dataProduct: "<data_product_name>"
   description: "<Описание витрины/сущности>"
   owner: "<owner_team_or_person>"
+  changeHistory:
+    - version: "1.0.0"
+      date: "YYYY-MM-DD"
+      author: "<ФИО_или_команда>"
+      description: "<Краткое_описание_изменений>"
+      jiraAnalyticsTask: "<Jira_Task>"
+      jiraDevTask: "<Jira_Task_опционально>"
+      status: "Готово"
